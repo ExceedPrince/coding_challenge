@@ -20,7 +20,6 @@ function allProfit(data) {
   return prices.reduce((a, b) => a + b);
 }
 
-
 function freeStuffs(data) {
   let gluFree = [];
   let lacFree = [];
@@ -42,48 +41,32 @@ function freeStuffs(data) {
   let final = { glutenFree: gluFree, lactoseFree: lacFree, lactoseAndGlutenFree: bothFree };
 
   console.log(JSON.stringify(final, null, 2));
+  return JSON.stringify(final, null, 2);
 }
 
-
 function actualProfit(data) {
-  //set all starting data
+  //set the lastweek sales, the whole sale price and the recipes
   let onlySales = allProfit(data);
+  let salesOfLAstWeek = data.salesOfLastWeek.sort((a, b) => a.name.localeCompare(b.name));
+  let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));
+  let wholesalePrices = data.wholesalePrices;
 
-  let salesArr = data.salesOfLastWeek;
+  //filter out the unneeded recipes and give the sold amount for the rest
   let salesNames = data.salesOfLastWeek.map(name => name.name)
-  let usablesArr = data.recipes.filter(food => salesNames.indexOf(food.name) > -1);
+  let filtered = recipes.filter(food => salesNames.indexOf(food.name) > -1).map((item, index) => ({ name: item.name, price: item.price, ingredients: item.ingredients, soldAmount: salesOfLAstWeek[index].amount }));
 
-  salesArr = salesArr.sort((a, b) => a.name.localeCompare(b.name));
-  usablesArr = usablesArr.sort((a, b) => a.name.localeCompare(b.name));
-
-  let multipliedRecepies = [];
-
-  //collecting multiplied amounts
-  for (let i = 0; i < salesArr.length; i++) {
-    let multIngs = [];
-
-    for (let o = 0; o < usablesArr[i].ingredients.length; o++) {
-      let obj = { name: '', multAmount: 0 };
-
-      if (usablesArr[i].ingredients[o].amount.indexOf(" pc") > -1) {
-        obj.name = usablesArr[i].ingredients[o].name;
-        obj.multAmount = salesArr[i].amount * parseInt(usablesArr[i].ingredients[o].amount);
-      } else {
-        obj.name = usablesArr[i].ingredients[o].name;
-        obj.multAmount = salesArr[i].amount * (parseInt(usablesArr[i].ingredients[o].amount) / 1000);
-      }
-
-      multIngs.push(obj);
+  //multiply the ingredients quantity with the sold amount and convert them
+  let multiplied = filtered.map(product => {
+    for (let i = 0; i < product.ingredients.length; i++) {
+      product.ingredients[i].saleAmount = parseInt(product.ingredients[i].amount) * product.soldAmount;
+      product.ingredients[i].saleAmount = product.ingredients[i].name !== "egg" ?
+        product.ingredients[i].saleAmount / 1000
+        : product.ingredients[i].saleAmount;
     }
-    let recipeName = salesArr[i].name;
-    let recipeObj = {};
-    recipeObj.name = recipeName;
-    recipeObj.ingredients = multIngs;
+    return product;
+  })
 
-    multipliedRecepies.push(recipeObj);
-  }
-
-  //Sum all ingredients among recipes
+  //add the ingredients together
   let summedIngredients = [
     { name: "flour", amount: 0 },
     { name: "gluten-free flour", amount: 0 },
@@ -97,28 +80,29 @@ function actualProfit(data) {
     { name: "chocolate", amount: 0 }
   ];
 
-  for (let u = 0; u < multipliedRecepies.length; u++) {
-    for (let a = 0; a < multipliedRecepies[u].ingredients.length; a++) {
-      for (let b = 0; b < summedIngredients.length; b++) {
-        if (summedIngredients[b].name === multipliedRecepies[u].ingredients[a].name) {
-          summedIngredients[b].amount += multipliedRecepies[u].ingredients[a].multAmount;
+  multiplied.map(prod => {
+    for (let o = 0; o < prod.ingredients.length; o++) {
+      for (let u = 0; u < summedIngredients.length; u++) {
+        if (summedIngredients[u].name === prod.ingredients[o].name) {
+          summedIngredients[u].amount += prod.ingredients[o].saleAmount;
         }
       }
     }
-  }
+  })
 
-  //Divide the summed amounts with their unit price
-  let wholeSP = data.wholesalePrices;
-  let dividedIngredients = summedIngredients.map((item, i) => ({ name: item.name, result: Math.ceil(item.amount / parseInt(wholeSP[i].amount)) }));
+  //divide the total ingredients with their unit sale and multiply the result with their price
+  let divided = summedIngredients.map((elem, i) => {
+    elem.dividedAmount = elem.amount / parseInt(wholesalePrices[i].amount);
+    elem.totalPrice = elem.dividedAmount * wholesalePrices[i].price;
+    return elem;
+  })
 
-  //Multiply the price with the divided results and sum them
-  let allPrice = dividedIngredients.map((el, index) => el.result * wholeSP[index].price)
-    .reduce((a, b) => a + b);
+  //add the prices togeher and subtract it from the onlySales
+  let final = divided.map(price => price.totalPrice).reduce((a, b) => a + b);
 
-  //calculate the final result
-  console.log(onlySales - allPrice);
+  console.log(onlySales - final)
+  return onlySales - final;
 }
-
 
 function focusOnOne(data) {
   let allRecipe = data.recipes;
@@ -153,145 +137,137 @@ function focusOnOne(data) {
     final.push(recipeObj);
   }
   console.log(JSON.stringify(final.sort((a, b) => a.name.localeCompare(b.name)), null, 2));
+  return JSON.stringify(final.sort((a, b) => a.name.localeCompare(b.name)), null, 2);
 }
 
-
 function maffia(data) {
-  //Set the new data arr, the recipes arr and the wholesalePrices arr
+  //set the recipes, the wholesaleprice and the maffia's request
+  let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));;
+  let wholesalePrices = data.wholesalePrices;
   let request = [{ name: "Francia krémes", amount: 300 },
   { name: "Rákóczi túrós", amount: 200 },
   { name: "Képviselőfánk", amount: 300 },
   { name: "Isler", amount: 100 },
   { name: "Tiramisu", amount: 150 }].sort((a, b) => a.name.localeCompare(b.name));
 
-  let recipes = data.recipes;
-  let wholesalePrices = data.wholesalePrices;
+  //filter out the unneeded recipes and give the requested amount to the remained ones
+  let requestNames = request.map(name => name.name)
+  let filtered = recipes.filter(food => requestNames.indexOf(food.name) > -1).map((item, index) => ({ name: item.name, price: item.price, ingredients: item.ingredients, soldAmount: request[index].amount }));
 
-  //filter out the unneeded products
-  let filtered = recipes.filter(item => {
-    for (let i = 0; i < request.length; i++) {
-      if (item.name === request[i].name) {
-        return item;
-      }
-    }
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  //multiply the ingredients quantity with the maffia's amount and convert them
+  let multiplied = filtered.map(product => {
+    product.totalPrice = 0;
 
-  //calculate the needed quantity of ingredient (of each recipe) based on maffia's amount
-  let priceArr = [];
+    for (let i = 0; i < product.ingredients.length; i++) {
+      product.ingredients[i].saleAmount = parseInt(product.ingredients[i].amount) * product.soldAmount;
+      product.ingredients[i].saleAmount = product.ingredients[i].name !== "egg" ?
+        product.ingredients[i].saleAmount / 1000
+        : product.ingredients[i].saleAmount;
 
-  for (let o = 0; o < filtered.length; o++) {
-    let number = 0;
-
-    for (let u = 0; u < filtered[o].ingredients.length; u++) {
-      if (filtered[o].ingredients[u].amount.indexOf(' pc') > -1) {
-        filtered[o].ingredients[u].amount = parseInt(filtered[o].ingredients[u].amount) * request[o].amount;
-      } else {
-        filtered[o].ingredients[u].amount = (parseInt(filtered[o].ingredients[u].amount) / 1000) * request[o].amount;
-      }
-
-      //divide the received quantity with the unit's amount, round it up
+      //divide the ingredients with their unit sale and multiply the result with their price
       wholesalePrices.forEach(item => {
-        if (item.name === filtered[o].ingredients[u].name) {
-          filtered[o].ingredients[u].result = Math.ceil(filtered[o].ingredients[u].amount / parseInt(item.amount));
+        if (item.name === product.ingredients[i].name) {
+          product.ingredients[i].result = Math.ceil(product.ingredients[i].saleAmount / parseInt(item.amount));
 
           //multiply the divided amount with its price
-          filtered[o].ingredients[u].multPrice = filtered[o].ingredients[u].result * item.price;
+          product.ingredients[i].multPrice = product.ingredients[i].result * item.price;
+
+          //add the prices together
+          product.totalPrice += product.ingredients[i].multPrice;
         }
       })
-      number += filtered[o].ingredients[u].multPrice;
     }
-    priceArr.push(number);
-  }
+    return product;
+  })
 
-  //sum the prices (=price of 1 product), than add all of them together
+  //sum the numbers of array
+  let priceArr = multiplied.map(item => item.totalPrice);
   console.log(priceArr.reduce((a, b) => a + b));
+  return priceArr.reduce((a, b) => a + b);
 }
 
+function futureInventory(data) {
+  //set all existing array separately
+  let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));
+  let inventory = data.inventory;
+  let salesOfLastWeek = data.salesOfLastWeek.sort((a, b) => a.name.localeCompare(b.name));
+  let wholesalePrices = data.wholesalePrices;
 
-	function futureInventory(data) {
-		//set all existing array separately
-		let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));
-		let inventory = data.inventory;
-		let salesOfLastWeek = data.salesOfLastWeek.sort((a, b) => a.name.localeCompare(b.name));
-		let wholesalePrices = data.wholesalePrices;
+  //filter out the unneeded recipes and calculate the two weeks sale amount
+  let usedNames = salesOfLastWeek.map(name => name.name)
+  let filtered = recipes.filter(food => usedNames.indexOf(food.name) > -1).map((item, index) => ({ name: item.name, price: item.price, ingredients: item.ingredients, futureAmount: salesOfLastWeek[index].amount * 2 }));
 
-		recipes = recipes.filter(item => {
-			for (let i = 0; i < salesOfLastWeek.length; i++) {
-				if (item.name === salesOfLastWeek[i].name) {
-					return item;
-				}
-			}
-		});
+  //multiply the recipes's ingredient's amount with the two weeks amount and convert them
+  let multiplied = filtered.map(product => {
+    for (let i = 0; i < product.ingredients.length; i++) {
+      product.ingredients[i].newAmount = parseInt(product.ingredients[i].amount) * product.futureAmount;
+      product.ingredients[i].newAmount = product.ingredients[i].name !== "egg" ?
+        product.ingredients[i].newAmount / 1000
+        : product.ingredients[i].newAmount;
+    }
 
-		//calculate the next 2 weeks sales
-		let salesOfNext2Week = salesOfLastWeek.map(item => ({ name: item.name, amount: item.amount * 2 }));
+    return product;
+  })
+  //add together the ingredients is a new array and give them 10%
+  let summedIngredients = [
+    { name: "flour", amount: 0 },
+    { name: "gluten-free flour", amount: 0 },
+    { name: "egg", amount: 0 },
+    { name: "sugar", amount: 0 },
+    { name: "milk", amount: 0 },
+    { name: "soy-milk", amount: 0 },
+    { name: "butter", amount: 0 },
+    { name: "vanilin sugar", amount: 0 },
+    { name: "fruit", amount: 0 },
+    { name: "chocolate", amount: 0 }
+  ];
 
-		//multiply the recipes's ingredient's amount with the two weeks amount and convert them
-		console.log(recipes)
-		for (let o = 0; o < recipes.length; o++) {
-			for (let u = 0; u < recipes[o].ingredients.length; u++) {
-				if (recipes[o].ingredients[u].amount.indexOf(' pc') > -1) {
-					recipes[o].ingredients[u].amount = parseInt(recipes[o].ingredients[u].amount) * salesOfNext2Week[o].amount;
-				} else {
-					recipes[o].ingredients[u].amount = (parseInt(recipes[o].ingredients[u].amount) / 1000) * salesOfNext2Week[o].amount;
-				}
-			}
-		}
+  multiplied.map(prod => {
+    for (let o = 0; o < prod.ingredients.length; o++) {
+      for (let u = 0; u < summedIngredients.length; u++) {
+        if (summedIngredients[u].name === prod.ingredients[o].name) {
+          summedIngredients[u].amount += prod.ingredients[o].newAmount;
+        }
+      }
+    }
+  })
 
-		//add together the ingredients is a new array and give them 10%
-		let summedIngredients = [
-			{ name: "flour", amount: 0 },
-			{ name: "gluten-free flour", amount: 0 },
-			{ name: "egg", amount: 0 },
-			{ name: "sugar", amount: 0 },
-			{ name: "milk", amount: 0 },
-			{ name: "soy-milk", amount: 0 },
-			{ name: "butter", amount: 0 },
-			{ name: "vanilin sugar", amount: 0 },
-			{ name: "fruit", amount: 0 },
-			{ name: "chocolate", amount: 0 }
-		];
+  let upgradedIngredients = summedIngredients.map(item => ({ name: item.name, amount: item.amount * 1.1 })); //!!!!!
 
-		for (let u = 0; u < recipes.length; u++) {
-			for (let a = 0; a < recipes[u].ingredients.length; a++) {
-				for (let b = 0; b < summedIngredients.length; b++) {
-					if (summedIngredients[b].name === recipes[u].ingredients[a].name) {
-						summedIngredients[b].amount += (recipes[u].ingredients[a].amount) * 1.1;
-					}
-				}
-			}
-		}
+  //subtract the inventory's ingredient's amount from the receives amounts
+  let subtractedIngredients = upgradedIngredients.map((elem, index) => ({ name: elem.name, amount: elem.amount - parseInt(inventory[index].amount) }));
 
-		//calc the difference between ingredients
-		for (let c = 0; c < summedIngredients.length; c++) {
-			summedIngredients[c].amount -= parseInt(inventory[c].amount);
+  //divide the result with their unit sale and multiply them with their price
+  let divided = subtractedIngredients.map((el, i) => {
+    let obj = {};
+    obj.name = el.name;
+    obj.amount = el.amount;
+    obj.unitAmount = Math.ceil(el.amount / parseInt(wholesalePrices[i].amount)); //!!!!!
+    obj.uniquePrice = obj.unitAmount * wholesalePrices[i].price;
 
-			//divide the result of positive ingredients with their unit amount, round them up, then multiply them with their price
-			summedIngredients[c].unitQuantity = Math.ceil(summedIngredients[c].amount / parseInt(wholesalePrices[c].amount));
+    return obj;
+  });
 
-			summedIngredients[c].price = summedIngredients[c].unitQuantity * wholesalePrices[c].price;
+  //put the name, the amount of difference and the received price into an object, and put it into an array, sorted by price
+  let finalArr = divided.map(thing => {
+    let uniqueAmount = "";
 
-		}
+    if (thing.name === "flour" || thing.name === "gluten-free flour" || thing.name === "sugar" || thing.name === "butter" || thing.name === "vanilin sugar" ||
+      thing.name === "fruit" || thing.name === "chocolate") {
+      uniqueAmount = " kg";
+    } else if (thing.name === "milk" || thing.name === "soy-milk") {
+      uniqueAmount = " l";
+    } else {
+      uniqueAmount = " pc";
+    }
 
-		//put the name, the amount of difference and the receives price into an object, and put that into an array, sorted by price
-		let finalArr = summedIngredients.map(elem => {
-			let uniqueAmount = "";
+    let obj = { name: thing.name, amount: thing.amount + uniqueAmount, totalPrice: thing.uniquePrice }
+    return obj;
+  })
 
-			if (elem.name === "flour" || elem.name === "gluten-free flour" || elem.name === "sugar" || elem.name === "butter" || elem.name === "vanilin sugar" ||
-				elem.name === "fruit" || elem.name === "chocolate") {
-				uniqueAmount = " kg";
-			} else if (elem.name === "milk" || elem.name === "soy-milk") {
-				uniqueAmount = " l";
-			} else {
-				uniqueAmount = " pc";
-			}
-
-			let obj = { name: elem.name, amount: elem.amount.toFixed(2) + uniqueAmount, totalPrice: elem.price }
-			return obj;
-		})
-
-		console.log(JSON.stringify(finalArr.filter(item => item.totalPrice > 0).sort((a, b) => b.totalPrice - a.totalPrice), null, 2));
-	}
+  console.log(JSON.stringify(finalArr.filter(item => item.totalPrice > 0).sort((a, b) => b.totalPrice - a.totalPrice), null, 2));
+  return JSON.stringify(finalArr.filter(item => item.totalPrice > 0).sort((a, b) => b.totalPrice - a.totalPrice), null, 2);
+}
 
 allProfit(bakeryData);
 freeStuffs(bakeryData);
