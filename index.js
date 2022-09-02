@@ -208,93 +208,94 @@ function maffia(data) {
 }
 
 
-function futureInventory(data) {
-  //set all existing array separately
-  let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));
-  let inventory = data.inventory;
-  let salesOfLastWeek = data.salesOfLastWeek.sort((a, b) => a.name.localeCompare(b.name));
-  let wholesalePrices = data.wholesalePrices;
+	function futureInventory(data) {
+		//set all existing array separately
+		let recipes = data.recipes.sort((a, b) => a.name.localeCompare(b.name));
+		let inventory = data.inventory;
+		let salesOfLastWeek = data.salesOfLastWeek.sort((a, b) => a.name.localeCompare(b.name));
+		let wholesalePrices = data.wholesalePrices;
 
-  recipes = recipes.filter(item => {
-    for (let i = 0; i < salesOfLastWeek.length; i++) {
-      if (item.name === salesOfLastWeek[i].name) {
-        return item;
-      }
-    }
-  });
+		recipes = recipes.filter(item => {
+			for (let i = 0; i < salesOfLastWeek.length; i++) {
+				if (item.name === salesOfLastWeek[i].name) {
+					return item;
+				}
+			}
+		});
 
-  //calculate the next 2 weeks sales
-  let salesOfNext2Week = salesOfLastWeek.map(item => ({ name: item.name, amount: item.amount * 2 }));
+		//calculate the next 2 weeks sales
+		let salesOfNext2Week = salesOfLastWeek.map(item => ({ name: item.name, amount: item.amount * 2 }));
 
-  //multiply the recipes's ingredient's amount with the two weeks amount and convert them
-  for (let o = 0; o < recipes.length; o++) {
-    for (let u = 0; u < recipes[o].ingredients.length; u++) {
-      if (recipes[o].ingredients[u].amount.indexOf(' pc') > -1) {
-        recipes[o].ingredients[u].amount = parseInt(recipes[o].ingredients[u].amount) * salesOfNext2Week[o].amount;
-      } else {
-        recipes[o].ingredients[u].amount = (parseInt(recipes[o].ingredients[u].amount) / 1000) * salesOfNext2Week[o].amount;
-      }
-    }
-  }
+		//multiply the recipes's ingredient's amount with the two weeks amount and convert them
+		console.log(recipes)
+		for (let o = 0; o < recipes.length; o++) {
+			for (let u = 0; u < recipes[o].ingredients.length; u++) {
+				if (recipes[o].ingredients[u].amount.indexOf(' pc') > -1) {
+					recipes[o].ingredients[u].amount = parseInt(recipes[o].ingredients[u].amount) * salesOfNext2Week[o].amount;
+				} else {
+					recipes[o].ingredients[u].amount = (parseInt(recipes[o].ingredients[u].amount) / 1000) * salesOfNext2Week[o].amount;
+				}
+			}
+		}
 
-  //add together the ingredients is a new array and give them 10%
-  let summedIngredients = [
-    { name: "flour", amount: 0 },
-    { name: "gluten-free flour", amount: 0 },
-    { name: "egg", amount: 0 },
-    { name: "sugar", amount: 0 },
-    { name: "milk", amount: 0 },
-    { name: "soy-milk", amount: 0 },
-    { name: "butter", amount: 0 },
-    { name: "vanilin sugar", amount: 0 },
-    { name: "fruit", amount: 0 },
-    { name: "chocolate", amount: 0 }
-  ];
+		//add together the ingredients is a new array and give them 10%
+		let summedIngredients = [
+			{ name: "flour", amount: 0 },
+			{ name: "gluten-free flour", amount: 0 },
+			{ name: "egg", amount: 0 },
+			{ name: "sugar", amount: 0 },
+			{ name: "milk", amount: 0 },
+			{ name: "soy-milk", amount: 0 },
+			{ name: "butter", amount: 0 },
+			{ name: "vanilin sugar", amount: 0 },
+			{ name: "fruit", amount: 0 },
+			{ name: "chocolate", amount: 0 }
+		];
 
-  for (let u = 0; u < recipes.length; u++) {
-    for (let a = 0; a < recipes[u].ingredients.length; a++) {
-      for (let b = 0; b < summedIngredients.length; b++) {
-        if (summedIngredients[b].name === recipes[u].ingredients[a].name) {
-          summedIngredients[b].amount += (recipes[u].ingredients[a].amount) * 1.1;
-        }
-      }
-    }
-  }
+		for (let u = 0; u < recipes.length; u++) {
+			for (let a = 0; a < recipes[u].ingredients.length; a++) {
+				for (let b = 0; b < summedIngredients.length; b++) {
+					if (summedIngredients[b].name === recipes[u].ingredients[a].name) {
+						summedIngredients[b].amount += (recipes[u].ingredients[a].amount) * 1.1;
+					}
+				}
+			}
+		}
 
-  //calc the difference between ingredients
-  for (let c = 0; c < summedIngredients.length; c++) {
-    summedIngredients[c].amount -= parseInt(inventory[c].amount);
+		//calc the difference between ingredients
+		for (let c = 0; c < summedIngredients.length; c++) {
+			summedIngredients[c].amount -= parseInt(inventory[c].amount);
 
-    //divide the result of positive ingredients with their unit amount, round them up, then multiply them with their price
-    summedIngredients[c].unitQuantity = Math.ceil(summedIngredients[c].amount / parseInt(wholesalePrices[c].amount));
+			//divide the result of positive ingredients with their unit amount, round them up, then multiply them with their price
+			summedIngredients[c].unitQuantity = Math.ceil(summedIngredients[c].amount / parseInt(wholesalePrices[c].amount));
 
-    summedIngredients[c].price = summedIngredients[c].unitQuantity * wholesalePrices[c].price;
+			summedIngredients[c].price = summedIngredients[c].unitQuantity * wholesalePrices[c].price;
 
-  }
+		}
 
-  //put the name, the amount of difference and the receives price into an object, and put that into an array, sorted by price
-  let finalArr = summedIngredients.map(elem => {
-    let uniqueAmount = "";
+		//put the name, the amount of difference and the receives price into an object, and put that into an array, sorted by price
+		let finalArr = summedIngredients.map(elem => {
+			let uniqueAmount = "";
 
-    if (elem.name === "flour" || elem.name === "gluten-free flour" || elem.name === "sugar" || elem.name === "butter" || elem.name === "vanilin sugar" ||
-      elem.name === "fruit" || elem.name === "chocolate") {
-      uniqueAmount = " kg";
-    } else if (elem.name === "milk" || elem.name === "soy-milk") {
-      uniqueAmount = " l";
-    } else {
-      uniqueAmount = " pc";
-    }
+			if (elem.name === "flour" || elem.name === "gluten-free flour" || elem.name === "sugar" || elem.name === "butter" || elem.name === "vanilin sugar" ||
+				elem.name === "fruit" || elem.name === "chocolate") {
+				uniqueAmount = " kg";
+			} else if (elem.name === "milk" || elem.name === "soy-milk") {
+				uniqueAmount = " l";
+			} else {
+				uniqueAmount = " pc";
+			}
 
-    let obj = { name: elem.name, amount: elem.amount.toFixed(2) + uniqueAmount, totalPrice: elem.price }
-    return obj;
-  })
+			let obj = { name: elem.name, amount: elem.amount.toFixed(2) + uniqueAmount, totalPrice: elem.price }
+			return obj;
+		})
 
-  console.log(JSON.stringify(finalArr.filter(item => item.totalPrice > 0).sort((a, b) => b.totalPrice - a.totalPrice), null, 2));
-}
+		console.log(JSON.stringify(finalArr.filter(item => item.totalPrice > 0).sort((a, b) => b.totalPrice - a.totalPrice), null, 2));
+	}
 
-//allProfit(bakeryData);
-//freeStuffs(bakeryData);
-//actualProfit(bakeryData);
-//focusOnOne(bakeryData);
-//maffia(bakeryData);
+allProfit(bakeryData);
+freeStuffs(bakeryData);
+actualProfit(bakeryData);
+focusOnOne(bakeryData);
+maffia(bakeryData);
 //futureInventory(bakeryData);
